@@ -19,8 +19,10 @@ namespace LoVe
 1.1 (1 point). Define the function `fib` that computes the Fibonacci
 numbers. -/
 
-def fib : ℕ → ℕ :=
-sorry
+def fib : ℕ → ℕ
+| 0                       := 0
+| 1                       := 1
+| (nat.succ (nat.succ n)) := fib n + fib (nat.succ n)
 
 /- 1.2 (0 points). Check that your function works as expected. -/
 
@@ -58,7 +60,10 @@ type inference. -/
 
 #eval reverse ([] : list ℕ)   -- expected: []
 #eval reverse [1, 3, 5]       -- expected: [5, 3, 1]
--- invoke `#eval` here
+#eval reverse [0]             -- expected: [0]
+#eval reverse ["x", "y"]      -- expected: ["y", "x"]
+#eval reverse [2, 0, 1]       -- expected: [1, 0, 2]
+#eval reverse [0, 3, 1, 2]    -- expected: [2, 1, 3, 0]
 
 /- 2.2 (2 points). State (without proving them) the following properties of
 `append₂` and `reverse`. Schematically:
@@ -74,8 +79,13 @@ Hint: Take a look at `reverse_reverse` from the demonstration file. -/
 
 #check sorry_lemmas.reverse_reverse
 
--- enter your lemma statements here
+lemma append_assoc {α : Type} (xs ys zs : list α) :
+  append₂ (append₂ xs ys) zs = append₂ xs (append₂ ys zs) :=
+sorry
 
+lemma reverse_append {α : Type} (xs ys : list α) :
+  reverse (append₂ xs ys) = append₂ (reverse ys) (reverse xs) :=
+sorry
 
 /- ## Question 3 (5 points): λ-Terms
 
@@ -91,16 +101,16 @@ while constructing a term. By hovering over `_`, you will see the current
 logical context. -/
 
 def B : (α → β) → (γ → α) → γ → β :=
-sorry
+λ f g c, f (g c)
 
 def S : (α → β → γ) → (α → β) → α → γ :=
-sorry
+λ f g a, f a (g a)
 
 def more_nonsense : (γ → (α → β) → α) → γ → β → α :=
-sorry
+λ f c b, f c (λ a, b)
 
 def even_more_nonsense : (α → α → β) → (β → γ) → α → β → γ :=
-sorry
+λ _ f _ b, f b
 
 /- 3.2 (1 point). Complete the following definition.
 
@@ -110,7 +120,7 @@ follow the procedure described in the Hitchhiker's Guide.
 Note: Peirce is pronounced like the English word "purse". -/
 
 def weak_peirce : ((((α → β) → α) → α) → β) → β :=
-sorry
+λ f, f (λ g, g (λ a, f (λ h, a)))
 
 /- 3.3 (2 points). Show the typing derivation for your definition of `S` above,
 using ASCII or Unicode art. You might find the characters `–` (to draw
@@ -118,6 +128,19 @@ horizontal bars) and `⊢` useful.
 
 Feel free to introduce abbreviations to avoid repeating large contexts `C`. -/
 
--- write your solution here
+/- Let `C` := `f : α → β → γ, g : α → β, a : α`. We have
+
+    ––––––––––––––––– Var    ––––––––– Var    ––––––––––––– Var    ––––––––– Var
+    C ⊢ f : α → β → γ        C ⊢ a : α        C ⊢ g : α → β        C ⊢ a : α
+    –––––––––––––––––––––––––––––––––– App    –––––––––––––––––––––––––––––– App
+    C ⊢ f a : β → γ                           C ⊢ g a : β
+    ––––––––––––––––––––––––––––––––––––––––––––––––––––– App
+    C ⊢ f a (g a) : γ
+    ––––––––––––––––––––––––––––––––––––––––––––––––– Lam
+    f : α → β → γ, g : α → β ⊢ λ a, f a (g a) : α → γ
+    –––––––––––––––––––––––––––––––––––––––––––––––––– Lam
+    f : α → β → γ ⊢ λ g a, f a (g a) : (α → β) → α → γ
+    –––––––––––––––––––––––––––––––––––––––––––––––––––– Lam
+    ⊢ λ f g a, f a (g a) : (α → β → γ) → (α → β) → α → γ -/
 
 end LoVe
