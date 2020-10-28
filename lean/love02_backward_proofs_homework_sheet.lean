@@ -121,46 +121,25 @@ Hints:
 #check peirce
 #check double_negation
 
-lemma not_contradiction (a : Prop) :
-  ¬(a ∧ ¬a) :=
-begin
-  apply not.intro,
-  intro hana,
-  apply @not.elim a,
-  { apply and.elim_right hana },
-  { apply and.elim_left hana },
-end
-
-lemma not_or_and (a b : Prop) :
- ¬(a ∨ b) → (¬a ∧ ¬b) :=
-begin
-  intro hnab,
-  apply and.intro,
-  {
-    intro ha,
-    apply not.elim,
-    exact hnab,
-    apply or.intro_left,
-    exact ha,
-  },
-  {
-    intro hb,
-    apply not.elim,
-    exact hnab,
-    apply or.intro_right,
-    exact hb,
-  },
-end
-
 lemma em_of_dn :
   double_negation → excluded_middle :=
 begin
-  rw excluded_middle,
   intros dn a,
   apply dn,
-  apply contrapositive,
-  apply not_or_and,
-  apply not_contradiction,
+  intro hnana,
+  apply @not.elim ¬a,
+  {
+    intro hna,
+    apply hnana,
+    apply or.intro_right,
+    exact hna,
+  },
+  {
+    intro ha,
+    apply hnana,
+    apply or.intro_left,
+    exact ha,
+  },
 end
 
 /- 2.3 (2 points). We have proved three of the six possible implications
