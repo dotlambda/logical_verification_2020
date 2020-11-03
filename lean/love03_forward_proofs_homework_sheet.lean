@@ -27,15 +27,18 @@ namespace backward_proofs
 
 lemma peirce_of_dn :
   double_negation → peirce :=
-sorry
+assume dn,
+show _, from peirce_of_em (sorry_lemmas.em_of_dn dn)
 
 lemma em_of_peirce :
   peirce → excluded_middle :=
-sorry
+assume p,
+show _, from sorry_lemmas.em_of_dn (dn_of_peirce p)
 
 lemma dn_of_em :
   excluded_middle → double_negation :=
-sorry
+assume em,
+show _, from dn_of_peirce (peirce_of_em em)
 
 end backward_proofs
 
@@ -45,14 +48,37 @@ rules for `∃`, `∧`, and `↔`. -/
 
 lemma exists_and_commute {α : Type} (p q : α → Prop) :
   (∃x, p x ∧ q x) ↔ (∃x, q x ∧ p x) :=
-sorry
+show _, from iff.intro (
+  assume hex,
+  show _, from exists.elim hex (
+    fix x,
+    assume hpq : p x ∧ q x,
+    have qp : _ := and.intro (and.elim_right hpq) (and.elim_left hpq),
+    show _, from exists.intro x qp
+  )
+) (
+  assume hex,
+  show _, from exists.elim hex (
+    fix x,
+    assume hqp : q x ∧ p x,
+    have pq : _ := and.intro (and.elim_right hqp) (and.elim_left hqp),
+    show _, from exists.intro x pq
+  )
+)
 
 /- 1.3 (1 bonus point). Supply a structured proof of the following property,
 which can be used pull a `∀`-quantifier past an `∃`-quantifier. -/
 
 lemma forall_exists_of_exists_forall {α : Type} (p : α → α → Prop) :
   (∃x, ∀y, p x y) → (∀y, ∃x, p x y) :=
-sorry
+assume hex,
+fix y,
+show _, from exists.elim hex (
+  fix x,
+  assume hall,
+  have pxy : _ := hall y,
+  show _, from exists.intro x pxy
+)
 
 
 /- ## Question 2 (3 points): Fokkink Logic Puzzles
@@ -82,13 +108,24 @@ Hint: There is an easy way. -/
 
 lemma weak_peirce₂ :
   ∀a b : Prop, ((((a → b) → a) → a) → b) → b :=
-sorry
+λ a b habaab, habaab (λ habaa, habaa (λ ha, habaab (λ haba, ha)))
 
 /- 2.2 (2 points). Prove the same Fokkink lemma again, this time by providing a
 structured proof, with `assume`s and `show`s. -/
 
 lemma weak_peirce₃ :
   ∀a b : Prop, ((((a → b) → a) → a) → b) → b :=
-sorry
+fix a b,
+assume habaab,
+show b, from habaab (
+  assume haba,
+  show a, from haba (
+    assume ha,
+    show b, from habaab (
+      assume haba,
+      show a, from ha
+    )
+  )
+)
 
 end LoVe
