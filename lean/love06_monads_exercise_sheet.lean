@@ -42,7 +42,7 @@ def option.orelse {α : Type} : option α → option α → option α
 { emp          := λα, option.none,
   orelse       := @option.orelse,
   emp_orelse   :=
-    sorry,
+    by tautology,
   orelse_emp   :=
     begin
       intros α a,
@@ -51,19 +51,29 @@ def option.orelse {α : Type} : option α → option α → option α
       { refl }
     end,
   orelse_assoc :=
-    sorry,
+    begin
+      intros α a b c,
+      cases' a,
+      { refl },
+      { refl }
+    end,
   emp_bind     :=
     begin
       intros α β f,
       refl
     end,
   bind_emp     :=
-    sorry,
+    begin
+      intros α β f,
+      cases' f,
+      { refl },
+      { refl }
+    end,
   .. option.lawful_monad }
 
 @[simp] lemma option.some_bind {α β : Type} (a : α) (g : α → option β) :
   (option.some a >>= g) = g a :=
-sorry
+by refl
 
 /- Let us enable some convenient pattern matching syntax, by instantiating
 Lean's `monad_fail` type class. (Do not worry if you do not understand what
@@ -117,10 +127,10 @@ def faction (σ : Type) (α : Type) :=
 the state passed along the state monad and `set s` changes the state to `s`. -/
 
 def get {σ : Type} : faction σ σ :=
-sorry
+λ s, option.some (s, s)
 
 def set {σ : Type} (s : σ) : faction σ unit :=
-sorry
+λ _, option.some ((), s)
 
 /- We set up the `>>=` syntax on `faction`: -/
 
@@ -141,7 +151,7 @@ by refl
 will satisfy the monad laws. -/
 
 def faction.pure {σ α : Type} (a : α) : faction σ α :=
-sorry
+λ s, (a, s)
 
 /- We set up the syntax for `pure` on `faction`: -/
 
@@ -171,9 +181,33 @@ Hints:
       refl
     end,
   bind_pure  :=
-    sorry,
+    begin
+      intros α ma,
+      apply funext,
+      intro s,
+      simp [(>>=), pure, faction.bind, faction.pure],
+      cases' ma s,
+      case none {
+        refl,
+      },
+      case some {
+        refl,
+      },
+    end,
   bind_assoc :=
-    sorry,
+    begin
+      intros α β γ f g ma,
+      apply funext,
+      intro s,
+      simp [(>>=), pure, faction.bind, faction.pure],
+      cases' ma s,
+      case none {
+        refl,
+      },
+      case some {
+        refl,
+      },
+    end,
   .. faction.has_bind,
   .. faction.has_pure }
 
@@ -195,18 +229,18 @@ infixr ` >=> ` : 90 := kleisli
 lemma pure_kleisli {m : Type → Type} [lawful_monad m] {α β : Type}
     (f : α → m β) :
   (pure >=> f) = f :=
-sorry
+by simp [(>=>), lawful_monad.pure_bind]
 
 lemma kleisli_pure {m : Type → Type} [lawful_monad m] {α β : Type}
     (f : α → m β) :
   (f >=> pure) = f :=
-sorry
+by simp [(>=>), lawful_monad.bind_pure]
 
 /- 2.2. Prove associativity of the Kleisli operator. -/
 
 lemma kleisli_assoc {m : Type → Type} [lawful_monad m] {α β γ δ : Type}
     (f : α → m β) (g : β → m γ) (h : γ → m δ) :
   ((f >=> g) >=> h) = (f >=> (g >=> h)) :=
-sorry
+by simp [(>=>), lawful_monad.bind_assoc]
 
 end LoVe
