@@ -28,7 +28,14 @@ Hint: You can use the `<|>` operator between the rules/tactics used for
 different symbols. -/
 
 meta def mindless_safe : tactic unit :=
-sorry
+do
+  tactic.repeat (
+    tactic.applyc ``true.intro
+    <|> tactic.applyc ``and.intro
+    <|> tactic.applyc ``iff.intro
+    <|> tactic.intro1 >> pure ()
+    <|> tactic.assumption
+  )
 
 lemma abcd (a b c d : Prop) (hc : c) :
   a → ¬ b ∧ (c ↔ d) :=
@@ -57,7 +64,13 @@ that this succeeded by invoking `tactic.done` (which succeeds only if there are
 no goals left). -/
 
 meta def mindless_unsafe (continue : tactic unit) : tactic unit :=
-sorry
+do
+  ctx ← tactic.local_context,
+  mmap (λ h, do {
+    tactic.all_goals (tactic.try (tactic.apply h))
+  }) ctx,
+  continue,
+  tactic.done
 
 lemma modus_ponens (a b : Prop) (ha : a) (hab : a → b) :
   b :=
@@ -69,10 +82,13 @@ and `mindless_unsafe` on all goals in alternation. The bound is necessary to
 eventually backtrack. -/
 
 meta def mindless : ℕ → tactic unit
-| 0           := mindless_safe
+| 0           :=
+  do
+    tactic.all_goals (tactic.try mindless_safe),
+    pure ()
 | (depth + 1) :=
   do
-    mindless_safe,
+    tactic.all_goals (tactic.try mindless_safe),
     tactic.all_goals (tactic.try (mindless_unsafe (mindless depth))),
     pure ()
 
@@ -140,11 +156,107 @@ conclusion matches the goal, but backtrack if necessary.
 
 See also "Automatic Proof and Disproof in Isabelle/HOL"
 (https://www.cs.vu.nl/~jbe248/frocos2011-dis-proof.pdf) by Blanchette, Bulwahn,
-and Nipkow, and the references they give.
+and Nipkow, and the references they give. -/
 
-2.2 (1 bonus point). Test your tactic on some benchmarks.
+/- a very dumb automatic tactic using breadth-first search -/
+meta def auto_dfs (max_goals : ℕ): list tactic_state → tactic unit
+| []        := tactic.fail "dead end reached"
+| (s :: ss) :=
+  do
+    -- set tactic state to the one at the head of the list
+    tactic.write s,
+    -- apply some harmless tactics to all goals
+    tactic.repeat (
+      tactic.intro1 >> pure ()
+      <|> tactic.assumption
+    ),
+    tactic.done <|> do {
+      s ← tactic.read,
+      ctx ← tactic.local_context,
+      let rules := [
+        ``true.intro,
+        ``false.elim,
+        ``and.intro,
+        ``and.elim_left,
+        ``and.elim_right,
+        ``or.intro_left,
+        ``or.intro_right,
+        ``or.elim,
+        ``iff.intro,
+        ``iff.elim,
+        ``exists.intro,
+        ``exists.elim
+      ],
+      -- list of tactics representing the application of assumptions and rules
+      let tactics :=
+        list.map (λ h, tactic.apply h >> pure ()) ctx
+        ++ list.map tactic.applyc rules,
+      ss ← monad.foldl (λ ss t, do {
+        tactic.write s,
+        t, -- try to apply tactic
+        goals ← tactic.get_goals,
+        if goals.length > max_goals then
+          tactic.fail "too many goals"
+        else do {
+          s ← tactic.read,
+          /- If tactic applies and does not create too many goals, append the
+          state after application to the list of states to process. -/
+          pure (ss ++ [s])
+        }
+      /- If tactic does not apply or creates too many goals, do not modify list
+      of states to process. -/
+      } <|> pure ss) ss tactics,
+      auto_dfs ss
+    }
+
+meta def auto (max_goals : ℕ) : tactic unit :=
+do
+  s ← tactic.read,
+  -- at first, there is only one tactic state to process
+  auto_dfs max_goals [s]
+
+/- 2.2 (1 bonus point). Test your tactic on some benchmarks.
 
 You can try your tactic on logic puzzles of the kinds we proved in exercise 2
 and homework 2. Please include these below. -/
+
+lemma i (a : Prop) :
+  a → a :=
+by auto 1
+
+lemma ii (a b c : Prop) :
+  (a → b → c) → b → a → c :=
+by auto 2
+
+lemma iii (a b : Prop) :
+  ((((a → b) → a) → a) → b) → b :=
+by auto 1
+
+lemma iv (a b : Prop) :
+  ¬ a ∨ b → a → b :=
+by auto 5
+
+lemma v {α : Type} (p : α → Prop) :
+  (∃ x, p x) → (∃ x, p x) :=
+by auto 1
+
+lemma vi (a b : Prop) :
+  a ∨ b → ¬ a → b :=
+by auto 5
+
+lemma vii (a b : Prop) :
+  (a → b) → (¬b → ¬a) :=
+by auto 1
+
+lemma viii (a b : Prop) :
+  (a ∨ b) → (a → b) → ¬b → b :=
+by auto 5
+
+lemma ix (a b c : Prop) :
+  ((a ∧ b) → c) ↔ (a → b → c) :=
+by auto 3
+
+/- For more complex examples, the tactic needs to be smarter at fighting
+exponentional growth of the number of states to process. -/
 
 end LoVe
