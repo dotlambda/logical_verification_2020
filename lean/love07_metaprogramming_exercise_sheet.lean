@@ -26,7 +26,16 @@ a `λ` or `∀` binder, and the arguments of the `macro` constructor.
 Hint: Use `name.to_string` to convert a name to a string, and `repr` for other
 types that belong to the `has_repr` type class. -/
 
--- enter your definition here
+meta def expr.repr :
+  expr → string
+| (expr.var n) := "(expr.var " ++ n.repr ++ ")"
+| (expr.sort l) := "(expr.sort " ++ l.to_string ++ ")"
+| (expr.const const_name ls) := "(expr.const " ++ const_name.to_string ++ " " ++ ls.to_string ++ ")"
+| (expr.mvar _ _ _) := ""
+| (expr.local_const _ _ _ _) := ""
+| (expr.app e₁ e₂) := "(expr.app " ++ e₁.repr ++ " " ++ e₂.repr ++ ")"
+| (expr.lam var_name bi var_type body) := "(expr.lam " ++ var_name.to_string ++ " _ " ++ var_type.repr ++ " " ++ body.repr ++ ")"
+| _ := ""
 
 /- We register `expr.repr` in the `has_repr` type class, so that we can use
 `repr` without qualification in the future, and so that it is available to
@@ -68,7 +77,8 @@ tactic on all goals and subgoals until the tactic fails on each of the goal) and
 quoting). -/
 
 meta def intro_ands : tactic unit :=
-sorry
+do
+  tactic.repeat (tactic.applyc ``and.intro)
 
 lemma abcd_bd (a b c d : Prop) (h : a ∧ (b ∧ c) ∧ d) :
   b ∧ d :=
@@ -135,7 +145,20 @@ form. Make sure to handle this failure gracefully, for example using
 `tactic.try` or `<|> pure ()`. -/
 
 meta def destruct_ands : tactic unit :=
-sorry
+tactic.repeat (do
+  ctx ← tactic.local_context,
+  ctx.mfirst (λ h, do {
+    t ← tactic.infer_type h,
+    match t with
+    | `(_ ∧ _) := do {
+      tactic.cases h
+    }
+    | _            := failure
+    end
+  }),
+  pure ()
+)
+
 
 lemma abcd_bd₂ (a b c d : Prop) (h : a ∧ (b ∧ c) ∧ d) :
   b ∧ d :=
@@ -156,7 +179,11 @@ end
 implement the desired `destro_and` tactic. -/
 
 meta def destro_and : tactic unit :=
-sorry
+do
+  intro_ands,
+  destruct_ands,
+  tactic.repeat tactic.assumption,
+  tactic.done <|> tactic.fail "Some conjuncts could not be proved."
 
 lemma abcd_bd₃ (a b c d : Prop) (h : a ∧ (b ∧ c) ∧ d) :
   b ∧ d :=
@@ -183,7 +210,21 @@ end
 /- 2.4. Provide some more examples for `destro_and` to convince yourself that
 it works as expected also on more complicated examples. -/
 
--- enter your examples here
+lemma ac_bd_abcd {a b c d : Prop} (h₁ : a ∧ c) (h₂ : b ∧ d) :
+  a ∧ b ∧ c ∧ d :=
+by destro_and
+
+lemma ab_aa {a b : Prop} (h : a ∧ b) :
+  a ∧ a :=
+by destro_and
+
+lemma a_b_ab {a b : Prop} (h₁ : a) (h₂ : b) :
+  a ∧ b :=
+by destro_and
+
+lemma ab_a {a b : Prop} (h : a ∧ b) :
+  a :=
+by destro_and
 
 
 /- ## Question 3 (**optional**): A Theorem Finder
