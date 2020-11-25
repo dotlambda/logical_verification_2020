@@ -47,19 +47,48 @@ show (S₁, s) ⟹ t ↔ (S₃, s) ⟹ t, from
 
 lemma big_step_equiv.skip_assign_id {x} :
   stmt.assign x (λs, s x) ≈ stmt.skip :=
-sorry
+begin
+  intros s t,
+  rw big_step_assign_iff,
+  rw big_step_skip_iff,
+  rw update_id,
+end
 
 lemma big_step_equiv.seq_skip_left {S : stmt} :
   stmt.skip ;; S ≈ S :=
-sorry
+begin
+  intros s t,
+  rw big_step_seq_iff,
+  apply iff.intro,
+  {
+    intro h,
+    apply exists.elim h,
+    intros r h,
+    rw big_step_skip_iff at h,
+    rw ←(and.elim_left h),
+    exact and.elim_right h,
+  },
+  {
+    intro h,
+    apply exists.intro s,
+    apply and.intro big_step.skip h,
+  },
+end
 
 lemma big_step_equiv.seq_skip_right {S : stmt} :
   S ;; stmt.skip ≈ S :=
-sorry
+begin
+  intros s t,
+  simp,
+end
 
 lemma big_step_equiv.ite_seq_while {b} {S : stmt} :
   stmt.ite b (S ;; stmt.while b S) stmt.skip ≈ stmt.while b S :=
-sorry
+begin
+  intros s t,
+  rw big_step_while_iff,
+  simp,
+end
 
 /- 1.2. Program equivalence can be used to replace subprograms by other
 subprograms with the same semantics. Prove the following so-called congruence
@@ -68,19 +97,67 @@ rules: -/
 lemma big_step_equiv.seq_congr {S₁ S₂ T₁ T₂ : stmt} (hS : S₁ ≈ S₂)
     (hT : T₁ ≈ T₂) :
   S₁ ;; T₁ ≈ S₂ ;; T₂ :=
-sorry
+begin
+  intros s t,
+  apply iff.intro,
+  {
+    intro h,
+    simp at h,
+    apply exists.elim h,
+    intros r h,
+    rw hS at h,
+    rw hT at h,
+    exact big_step.seq (and.elim_left h) (and.elim_right h),
+  },
+  {
+    intro h,
+    simp at h,
+    apply exists.elim h,
+    intros r h,
+    rw ←hS at h,
+    rw ←hT at h,
+    exact big_step.seq (and.elim_left h) (and.elim_right h),
+  },
+end
 
 lemma big_step_equiv.ite_congr {b} {S₁ S₂ T₁ T₂ : stmt} (hS : S₁ ≈ S₂)
     (hT : T₁ ≈ T₂) :
   stmt.ite b S₁ T₁ ≈ stmt.ite b S₂ T₂ :=
-sorry
+begin
+  intros s t,
+  apply iff.intro,
+  repeat {
+    simp only [big_step_ite_iff],
+    rw hS,
+    rw hT,
+    intro h,
+    exact h,
+  },
+end
 
 /- 1.3 (**optional**): Prove one more congruence rule. This one is more
 difficult. -/
 
 lemma denote_equiv.while_congr {b} {S₁ S₂ : stmt} (hS : S₁ ≈ S₂) :
   stmt.while b S₁ ≈ stmt.while b S₂ :=
-sorry
+begin
+  intros s t,
+  apply iff.intro,
+  repeat {
+    intro h,
+    induction' h,
+    case while_true : b S₁ s t u hb hS' hw ihS ihw {
+      rw big_step_while_iff,
+      apply or.intro_left,
+      apply exists.intro t,
+      rw ←hS <|> rw hS,
+      simp *,
+    },
+    case while_false : b S₁ s hnb {
+      apply big_step.while_false hnb,
+    },
+  },
+end
 
 
 /- ## Question 2: Guarded Command Language (GCL)
@@ -147,26 +224,117 @@ WHILE language. -/
 
 @[simp] lemma big_step_assign_iff {x a s t} :
   (stmt.assign x a, s) ⟹ t ↔ t = s{x ↦ a s} :=
-sorry
+begin
+  apply iff.intro,
+  {
+    intro h,
+    cases' h,
+    refl,
+  },
+  {
+    intro h,
+    rw h,
+    exact big_step.assign,
+  }
+end
 
 @[simp] lemma big_step_assert {b s t} :
   (stmt.assert b, s) ⟹ t ↔ t = s ∧ b s :=
-sorry
+begin
+  apply iff.intro,
+  {
+    intro h,
+    cases' h,
+    simp *,
+  },
+  {
+    intro h,
+    rw (and.elim_left h),
+    apply big_step.assert (and.elim_right h),
+  },
+end
 
 @[simp] lemma big_step_seq_iff {S₁ S₂ s t} :
   (stmt.seq S₁ S₂, s) ⟹ t ↔ (∃u, (S₁, s) ⟹ u ∧ (S₂, u) ⟹ t) :=
-sorry
+begin
+  apply iff.intro,
+  {
+    intro h,
+    cases' h,
+    apply exists.intro,
+    apply and.intro,
+    assumption,
+    assumption,
+  },
+  {
+    intro h,
+    apply exists.elim h,
+    intros u h,
+    exact big_step.seq (and.elim_left h) (and.elim_right h),
+  },
+end
 
 lemma big_step_loop {S s u} :
   (stmt.loop S, s) ⟹ u ↔
   (s = u ∨ (∃t, (S, s) ⟹ t ∧ (stmt.loop S, t) ⟹ u)) :=
-sorry
+begin
+  apply iff.intro,
+  {
+    intro h,
+    cases' h,
+    case loop_base {
+      apply or.intro_left,
+      refl,
+    },
+    case loop_step {
+      apply or.intro_right,
+      apply exists.intro,
+      apply and.intro,
+      assumption,
+      assumption,
+    },
+  },
+  {
+    intro h,
+    apply or.elim h,
+    {
+      intro h,
+      rw ←h,
+      exact big_step.loop_base,
+    },
+    {
+      intro h,
+      apply exists.elim h,
+      intros t h,
+      apply big_step.loop_step,
+      exact and.elim_left h,
+      exact and.elim_right h,
+    }
+  }
+end
 
 @[simp] lemma big_step_choice {Ss s t} :
   (stmt.choice Ss, s) ⟹ t ↔
   (∃(i : ℕ) (hless : i < list.length Ss),
      (list.nth_le Ss i hless, s) ⟹ t) :=
-sorry
+begin
+  apply iff.intro,
+  {
+    intro h,
+    cases' h,
+    apply exists.intro,
+    apply exists.intro,
+    assumption,
+  },
+  {
+    intro h,
+    apply exists.elim h,
+    intros i h,
+    apply exists.elim h,
+    intros hless h,
+    apply big_step.choice i hless h,
+  }
+end
 
 end gcl
 
@@ -176,19 +344,22 @@ program, by filling in the `sorry` placeholders below. -/
 def gcl_of : stmt → gcl.stmt state
 | stmt.skip         := gcl.stmt.assert (λ_, true)
 | (stmt.assign x a) :=
-  sorry
+  gcl.stmt.assign x a
 | (S ;; T)          :=
-  sorry
+  gcl_of S ;; gcl_of T
 | (stmt.ite b S T)  :=
-  sorry
+  gcl.stmt.choice [
+    gcl.stmt.assert (λ s, b s) ;; gcl_of S,
+    gcl.stmt.assert (λ s, ¬b s) ;; gcl_of T
+  ]
 | (stmt.while b S)  :=
-  sorry
+  gcl.stmt.loop (gcl.stmt.assert b ;; gcl_of S) ;; gcl.stmt.assert (λ s, ¬b s)
 
 /- 2.3. In the definition of `gcl_of` above, `skip` is translated to
 `assert (λ_, true)`. Looking at the big-step semantics of both constructs, we
 can convince ourselves that it makes sense. Can you think of other correct ways
 to define the `skip` case? -/
 
--- enter your answer here
+-- `gcl.stmt.loop (gcl.stmt.assert (λ _, false))`
 
 end LoVe
