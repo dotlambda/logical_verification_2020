@@ -34,7 +34,30 @@ the work that remains to be done. -/
 
 lemma GAUSS_correct (n₀ : ℕ) :
   {* λs, s "n" = n₀ *} GAUSS {* λs, s "r" = sum_upto n₀ *} :=
-sorry
+show
+  {* λs, s "n" = n₀ *}
+  stmt.assign "r" (λ s, 0) ;;
+  stmt.while_inv (λ s, s "r" + sum_upto (s "n") = sum_upto n₀) (λ s, s "n" ≠ 0)
+    (stmt.assign "r" (λ s, s "r" + s "n") ;;
+    stmt.assign "n" (λ s, s "n" - 1))
+  {* λs, s "r" = sum_upto n₀ *}, from
+  begin
+    vcg; simp { contextual := tt },
+    {
+      intros s hsum hnzero,
+      cases' s "n",
+      case zero {
+        tautology,
+      },
+      case succ : n {
+        simp [←hsum, sum_upto, nat.succ_eq_add_one, add_assoc],
+      },
+    },
+    {
+      intros s hzero hsum,
+      simp [←hsum, sum_upto],
+    },
+  end
 
 /- 1.2. The following WHILE program is intended to compute the product of `n`
 and `m`, leaving the result in `r`. Prove its correctness using `vcg`.
@@ -50,7 +73,26 @@ stmt.while (λs, s "n" ≠ 0)
 
 lemma MUL_correct (n₀ m₀ : ℕ) :
   {* λs, s "n" = n₀ ∧ s "m" = m₀ *} MUL {* λs, s "r" = n₀ * m₀ *} :=
-sorry
+show
+  {* λs, s "n" = n₀ ∧ s "m" = m₀ *}
+  stmt.assign "r" (λ s, 0) ;;
+  stmt.while_inv (λ s, s "r" + s "n" * m₀ = n₀ * m₀ ∧ s "m" = m₀)
+    (λ s, s "n" ≠ 0)
+    (stmt.assign "r" (λ s, s "r" + s "m") ;;
+    stmt.assign "n" (λ s, s "n" - 1))
+  {* λs, s "r" = n₀ * m₀ *}, from
+  begin
+    vcg; simp { contextual := tt },
+    intros s hprod hm hnzero,
+    cases' s "n",
+    case zero {
+      tautology,
+    },
+    case succ : n {
+      simp [←hprod, nat.succ_mul],
+      cc,
+    },
+  end
 
 
 /- ## Question 2: Hoare Triples for Total Correctness -/
@@ -68,25 +110,45 @@ namespace total_hoare
 lemma consequence {P P' Q Q' : state → Prop} {S}
     (hS : [* P *] S [* Q *]) (hP : ∀s, P' s → P s) (hQ : ∀s, Q s → Q' s) :
   [* P' *] S [* Q' *] :=
-sorry
+begin
+  intros s hP',
+  apply exists.elim (hS s (hP s hP')),
+  finish,
+end
 
 /- 2.2. Prove the rule for `skip`. -/
 
 lemma skip_intro {P} :
   [* P *] stmt.skip [* P *] :=
-sorry
+begin
+  intros s hP,
+  finish,
+end
 
 /- 2.3. Prove the rule for `assign`. -/
 
 lemma assign_intro {P : state → Prop} {x} {a : state → ℕ} :
   [* λs, P (s{x ↦ a s}) *] stmt.assign x a [* P *] :=
-sorry
+begin
+  intros s hP,
+  finish,
+end
 
 /- 2.4. Prove the rule for `seq`. -/
 
 lemma seq_intro {P Q R S T} (hS : [* P *] S [* Q *]) (hT : [* Q *] T [* R *]) :
   [* P *] S ;; T [* R *] :=
-sorry
+begin
+  intros s hP,
+  apply exists.elim (hS s hP),
+  clear hS,
+  intros t hS,
+  apply exists.elim (hT t (and.elim_right hS)),
+  clear hT,
+  intros u hT,
+  apply exists.intro u,
+  finish,
+end
 
 /- 2.5. Complete the proof of the rule for `ite`.
 
@@ -96,7 +158,18 @@ lemma ite_intro {b P Q : state → Prop} {S T}
     (hS : [* λs, P s ∧ b s *] S [* Q *])
     (hT : [* λs, P s ∧ ¬ b s *] T [* Q *]) :
   [* P *] stmt.ite b S T [* Q *] :=
-sorry
+begin
+  intros s hP,
+  cases' classical.em (b s),
+  {
+    apply exists.elim (hS s (and.intro hP h)),
+    finish,
+  },
+  {
+    apply exists.elim (hT s (and.intro hP h)),
+    finish,
+  },
+end
 
 /- 2.6 (**optional**). Try to prove the rule for `while`.
 
